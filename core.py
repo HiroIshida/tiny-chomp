@@ -9,19 +9,13 @@ def solve(q_start, q_end, n_wp):
     return init_solution
 
 @lru_cache(None)
-def create_diagonal_matrix(n_dof, n_wp):
-    corner_cases = [0, n_wp-1]
-    diag = [(1 if i in corner_cases else 2) 
-            for i in range(n_wp)]
-    mat_ = np.diag(diag)
+def create_K(n_wp, n_dof):
+    K_ = np.diag([1]*n_wp)
     for i in range(n_wp):
         for j in range(n_wp):
-            if abs(i - j) == 1:
-                mat_[i, j] = -1
-    mat = np.kron(mat_, np.eye(n_dof))
-    return mat
+            if i>j and abs(i - j) == 1:
+                K_[i, j] = -1
+    K = np.kron(K_, np.eye(n_dof))
+    return K
 
-mat = create_diagonal_matrix(2, 2)
-    
-
-
+mat = create_K(3, 2)
