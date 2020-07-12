@@ -1,4 +1,5 @@
 import numpy as np
+from functools import lru_cache
 
 def solve(q_start, q_end, n_wp):
     n_dof = len(q_start)
@@ -7,6 +8,7 @@ def solve(q_start, q_end, n_wp):
     init_solution = np.array([q_start + i * step for i in range(n_wp)])
     return init_solution
 
+@lru_cache(None)
 def create_diagonal_matrix(n_dof, n_wp):
     corner_cases = [0, n_wp-1]
     diag = [(1 if i in corner_cases else 2) 
@@ -21,7 +23,5 @@ def create_diagonal_matrix(n_dof, n_wp):
 
 mat = create_diagonal_matrix(2, 2)
     
-
-
 
 
