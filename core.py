@@ -5,8 +5,8 @@ def solve(q_start, q_end, n_wp):
     n_dof = len(q_start)
     q_start, q_end = np.array(q_start), np.array(q_end)
     step = (q_end - q_start)/(n_wp - 1)
-    init_solution = np.array([q_start + i * step for i in range(n_wp)])
-    return init_solution
+    init_solution = np.hstack([q_start + i * step for i in range(n_wp)])
+    return init_solution.reshape(n_wp * n_dof, 1)
 
 @lru_cache(None)
 def construct_K(n_wp, n_dof):
@@ -34,7 +34,16 @@ def construct_Abc(q_start, q_end, n_wp): # A, b and c terms of chomp
     c = np.linalg.norm(e)**2
     return A, b, c
 
-s = np.array([0, 0, 0])
-e = np.array([1, 1, 1])
-A, b, c = construct_Abc(s, e, 3)
+s = np.array([0, 0])
+e = np.array([1, 1])
+n_wp = 3 
+A, b, c = construct_Abc(s, e, n_wp)
+
+grad = lambda xi: A.dot(xi) + b
+cost = lambda xi: (0.5 * xi.T.dot(A).dot(xi) + xi.T.dot(b)).item()
+
+xi = solve(s, e, n_wp)
+for i in range(10000):
+    xi = xi - grad(xi) * 0.01
+    print(cost(xi))
 
