@@ -10,8 +10,8 @@ def solve(q_start, q_end, n_wp):
 
 def construct_Abc(q_start, q_end, n_wp): # A, b and c terms of chomp 
     n_dof = len(q_start)
-    w_s = 1000.0
-    w_e = 1000.0
+    w_s = 10.0
+    w_e = 10.0
 
     def construct_A():
         corner_cases = [0, n_wp-1]
@@ -30,10 +30,10 @@ def construct_Abc(q_start, q_end, n_wp): # A, b and c terms of chomp
         return mat
 
     def construct_b():
-        e = -2*q_start*w_s
+        e = -q_start*w_s
         for i in range(n_wp - 2):
             e = np.hstack((e, np.zeros(n_dof)))
-        e = np.hstack((e, -2*q_end*w_e))
+        e = np.hstack((e, -q_end*w_e))
         return e.reshape(n_wp*n_dof, 1)
 
     def construct_c():
@@ -45,16 +45,18 @@ def construct_Abc(q_start, q_end, n_wp): # A, b and c terms of chomp
 
     return A, b, c
 
-s = np.array([0])
-e = np.array([1])
+n_wp = 10
+s = np.array([-0.5])
+e = np.array([0.5])
 A, b, c = construct_Abc(s, e, n_wp)
+Ainv = np.linalg.inv(A)
 
 grad = lambda xi: A.dot(xi) + b
 cost = lambda xi: (0.5 * xi.T.dot(A).dot(xi) + xi.T.dot(b)).item()
 
 xi = solve(s, e, n_wp)
-for i in range(100):
+for i in range(3):
     g = grad(xi)
-    xi = xi - g * 0.001
+    xi = xi - Ainv.dot(g) * 0.1
     print(g)
 
