@@ -1,5 +1,7 @@
 import numpy as np
 from functools import lru_cache
+import matplotlib.pyplot as plt
+import copy
 
 def solve(q_start, q_end, n_wp):
     n_dof = len(q_start)
@@ -45,18 +47,91 @@ def construct_Abc(q_start, q_end, n_wp): # A, b and c terms of chomp
 
     return A, b, c
 
-n_wp = 10
-s = np.array([-0.5])
-e = np.array([0.5])
+def additional_cost(xi, n_dof, n_wp):
+    Q = xi.reshape(n_wp, n_dof) 
+    w = 0
+    c = 10.0
+    p = np.array([0.001, 0.0])
+    for q in Q:
+        diff = np.linalg.norm(q - p) - 0.2
+        if diff < 0.0:
+            w += c * diff*2
+    return w
+
+def compute_grad(f, x0, n_dim):
+    f0 = f(x0)
+    grad = np.zeros(n_dim)
+    for i in range(n_dim):
+        x_ = copy.copy(x0)
+        dx = 1e-8
+        x_[i] += dx 
+        grad[i] = (f(x_) - f0)/dx
+    return grad
+
+
+n_wp = 20
+n_dof = 2
+s = np.array([-0.5]*n_dof)
+e = np.array([0.5]*n_dof)
 A, b, c = construct_Abc(s, e, n_wp)
 Ainv = np.linalg.inv(A)
 
-grad = lambda xi: A.dot(xi) + b
-cost = lambda xi: (0.5 * xi.T.dot(A).dot(xi) + xi.T.dot(b)).item()
+def cost_function(x, grad):
+    f = lambda xi: (0.5 * xi.T.dot(A).dot(xi) + xi.T.dot(b)).item() 
+    if grad.size > 0:
+        g = compute_grad(f, x, len(x))
+        for i in range(len(x)):
+            grad[i] = g[i]
+    return f(x)
+
+def ineq_const(x, grad):
+    def f(x):
+        X = x.reshape(20, 2)
+        val = 0.0
+        for x in X:
+            tmp = (x[0] ** 2 + x[1] ** 2  - 0.3**2)
+            if tmp < 0:
+                val -= tmp
+        return val
+
+    if grad.size > 0:
+        g = compute_grad(f, x, len(x))
+        for i in range(len(x)):
+            grad[i] = g[i]
+    return f(x)
 
 xi = solve(s, e, n_wp)
-for i in range(3):
-    g = grad(xi)
-    xi = xi - Ainv.dot(g) * 0.1
-    print(g)
+xi += np.random.randn(40, 1) * 0.1
 
+
+import nlopt
+
+ndim = 40
+algorithm = nlopt.LD_AUGLAG
+opt = nlopt.opt(algorithm, ndim)
+tol = 1e-8 
+opt.set_ftol_rel(tol)
+opt.set_min_objective(cost_function)
+opt.add_inequality_constraint(ineq_const, 1e-5)
+xopt = opt.optimize(xi.flatten())
+
+xi = xopt.reshape(20, 2)
+Q = xi.reshape(n_wp, n_dof)
+plt.scatter(Q[:, 0], Q[:, 1])
+plt.show()
+
+"""
+for i in range(1000):
+    if i%10==11:
+        Q = xi.reshape(n_wp, n_dof)
+        plt.scatter(Q[:, 0], Q[:, 1])
+        plt.show()
+    g_add = compute_grad(f, xi, n_wp*n_dof)
+    g = grad(xi) + g_add.reshape(n_wp*n_dof, 1)
+    xi = xi - Ainv.dot(g) * 0.1
+    print(np.linalg.norm(g))
+
+Q = xi.reshape(n_wp, n_dof)
+plt.scatter(Q[:, 0], Q[:, 1])
+plt.show()
+"""
